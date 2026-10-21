@@ -1,0 +1,23 @@
+[Unit]
+Description=Kuguan private backup API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kuguan-backup
+Group=kuguan-backup
+EnvironmentFile=/etc/kuguan-backup.env
+WorkingDirectory=/opt/kuguan-backup
+ExecStart=/opt/kuguan-backup/.venv/bin/uvicorn backup_server.api:create_app --factory --host 127.0.0.1 --port 8876 --workers 1 --no-access-log
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/kuguan-backup
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,541 @@
+{
+  "version": 1,
+  "description": "M2 LLM 意图抽取语料。text 按阿里 ASR 的真实口径写（中英混排、带句号、偶有「嗯」）。同一文件被两处消费：app 单测（IntentCorpusTest）与 tools/m2-intent-bench.mjs。",
+  "context": {
+    "today": "2026-10-18",
+    "knownItems": [
+      "七号电池",
+      "五号电池",
+      "手电筒",
+      "登山杖",
+      "螺丝刀",
+      "电工胶带",
+      "A4纸",
+      "膨胀栓",
+      "充电线",
+      "雨伞",
+      "万能胶"
+    ],
+    "recentOps": [
+      { "seq": 101, "type": "PUT", "item": "七号电池", "locationCode": "A-07", "quantity": 2 },
+      { "seq": 102, "type": "PUT", "item": "登山杖", "locationCode": "C-03", "quantity": 1 },
+      { "seq": 103, "type": "PUT", "item": "五号电池", "locationCode": "A-07", "quantity": 2 }
+    ]
+  },
+  "cases": [
+    {
+      "id": "m01",
+      "tags": ["single"],
+      "note": "M0.6 真实样本 01：单物单位置单数量",
+      "text": "A07里放了7号电池两节。",
+      "expect": { "intent": "put", "items": [{ "name": "7号电池", "quantity": 2, "locationCode": "A-07" }] }
+    },
+    {
+      "id": "m02",
+      "tags": ["single"],
+      "note": "M0.6 真实样本 19：只说位置不说数量",
+      "text": "膨胀栓放A07。",
+      "expect": { "intent": "put", "items": [{ "name": "膨胀栓", "quantity": null, "locationCode": "A-07" }] }
+    },
+    {
+      "id": "m03",
+      "tags": ["single", "no_location"],
+      "note": "M0.6 真实样本 23：无位置无数量",
+      "text": "7号电池放好了，没别的了。",
+      "expect": { "intent": "put", "items": [{ "name": "7号电池", "quantity": null, "locationCode": null }] }
+    },
+    {
+      "id": "m04",
+      "tags": ["single", "deictic"],
+      "note": "指代：不许造编号",
+      "text": "那个登山杖也放进去。",
+      "expect": { "intent": "put", "items": [{ "name": "登山杖", "quantity": null, "locationCode": null }] }
+    },
+    {
+      "id": "m05",
+      "tags": ["take"],
+      "note": "M0.6 真实样本 05：TAKE 未说数量 → 必须 null",
+      "text": "把A07里的东西拿出来。",
+      "expect": { "intent": "take", "items": [{ "name": "东西", "quantity": null, "locationCode": "A-07" }] }
+    },
+    {
+      "id": "m06",
+      "tags": ["single"],
+      "note": "整十编号 A10",
+      "text": "A10放两节7号电池。",
+      "expect": { "intent": "put", "items": [{ "name": "7号电池", "quantity": 2, "locationCode": "A-10" }] }
+    },
+    {
+      "id": "m07",
+      "tags": ["query"],
+      "note": "M0.6 真实样本 25：query",
+      "text": "登山杖在哪？",
+      "expect": { "intent": "query", "items": [{ "name": "登山杖", "quantity": null, "locationCode": null }] }
+    },
+    {
+      "id": "m08",
+      "tags": ["query"],
+      "note": "口语 query，无「在」字",
+      "text": "电池放哪了",
+      "expect": { "intent": "query", "items": [{ "name": "电池", "quantity": null, "locationCode": null }, { "name": "7号电池", "quantity": null, "locationCode": null }, { "name": "5号电池", "quantity": null, "locationCode": null }] }
+    },
+    {
+      "id": "m09",
+      "tags": ["multi_item"],
+      "note": "同位置三物，第三个没说数量",
+      "text": "往A07放两节七号电池、三节五号电池、手电筒。",
+      "expect": {
+        "intent": "put",
+        "items": [
+          { "name": "七号电池", "quantity": 2, "locationCode": "A-07" },
+          { "name": "五号电池", "quantity": 3, "locationCode": "A-07" },
+          { "name": "手电筒", "quantity": null, "locationCode": "A-07" }
+        ]
+      }
+    },
+    {
+      "id": "m10",
+      "tags": ["multi_item", "hard"],
+      "note": "单句 8 行。含 A4纸（字母+数字开头的物品名）",
+      "text": "A07里放两节七号电池、三节五号电池、一个手电筒、两把螺丝刀、一卷电工胶带、一包A4纸、两根充电线、一把雨伞。",
+      "expect": {
+        "intent": "put",
+        "items": [
+          { "name": "七号电池", "quantity": 2, "locationCode": "A-07" },
+          { "name": "五号电池", "quantity": 3, "locationCode": "A-07" },
+          { "name": "手电筒", "quantity": 1, "locationCode": "A-07" },
+          { "name": "螺丝刀", "quantity": 2, "locationCode": "A-07" },
+          { "name": "电工胶带", "quantity": 1, "locationCode": "A-07" },
+          { "name": "A4纸", "quantity": 1, "locationCode": "A-07" },
+          { "name": "充电线", "quantity": 2, "locationCode": "A-07" },
+          { "name": "雨伞", "quantity": 1, "locationCode": "A-07" }
+        ]
+      }
+    },
+    {
+      "id": "m11",
+      "tags": ["multi_item", "hard"],
+      "note": "A4纸 出现在句首，不是编号",
+      "text": "A07放两包A4纸和三节七号电池。",
+      "expect": {
+        "intent": "put",
+        "items": [
+          { "name": "A4纸", "quantity": 2, "locationCode": "A-07" },
+          { "name": "七号电池", "quantity": 3, "locationCode": "A-07" }
+        ]
+      }
+    },
+    {
+      "id": "m12",
+      "tags": ["multi_item", "no_quantity"],
+      "note": "三物都没数量",
+      "text": "A07里有手电筒、螺丝刀、电工胶带。",
+      "expect": {
+        "intent": "put",
+        "items": [
+          { "name": "手电筒", "quantity": null, "locationCode": "A-07" },
+          { "name": "螺丝刀", "quantity": null, "locationCode": "A-07" },
+          { "name": "电工胶带", "quantity": null, "locationCode": "A-07" }
+        ]
+      }
+    },
+    {
+      "id": "m13",
+      "tags": ["multi_item"],
+      "note": "位置在句尾，管三样东西",
+      "text": "把雨伞、充电线、手电筒都放到B05。",
+      "expect": {
+        "intent": "put",
+        "items": [
+          { "name": "雨伞", "quantity": null, "locationCode": "B-05" },
+          { "name": "充电线", "quantity": null, "locationCode": "B-05" },
+          { "name": "手电筒", "quantity": null, "locationCode": "B-05" }
+        ]
+      }
+    },
+    {
+      "id": "m14",
+      "tags": ["multi_item"],
+      "note": "逗号分隔 + 数量各说各的",
+      "text": "A07放两个手电筒，三节五号电池。",
+      "expect": {
+        "intent": "put",
+        "items": [
+          { "name": "手电筒", "quantity": 2, "locationCode": "A-07" },
+          { "name": "五号电池", "quantity": 3, "locationCode": "A-07" }
+        ]
+      }
+    },
+    {
+      "id": "m15",
+      "tags": ["multi_item"],
+      "note": "三行 + 语气词「还有」",
+      "text": "A07里放七号电池两节，五号电池三节，还有充电线一根。",
+      "expect": {
+        "intent": "put",
+        "items": [
+          { "name": "七号电池", "quantity": 2, "locationCode": "A-07" },
+          { "name": "五号电池", "quantity": 3, "locationCode": "A-07" },
+          { "name": "充电线", "quantity": 1, "locationCode": "A-07" }
+        ]
+      }
+    },
+    {
+      "id": "m16",
+      "tags": ["multi_item"],
+      "note": "「和」连接两物",
+      "text": "往A07放两节七号电池和三节五号电池。",
+      "expect": {
+        "intent": "put",
+        "items": [
+          { "name": "七号电池", "quantity": 2, "locationCode": "A-07" },
+          { "name": "五号电池", "quantity": 3, "locationCode": "A-07" }
+        ]
+      }
+    },
+    {
+      "id": "m17",
+      "tags": ["multi_location"],
+      "note": "同物两位，「都有」不能说成数量",
+      "text": "电池A07和B07都有。",
+      "expect": {
+        "intent": "put",
+        "items": [
+          { "name": "电池", "quantity": null, "locationCode": "A-07" },
+          { "name": "电池", "quantity": null, "locationCode": "B-07" }
+        ]
+      }
+    },
+    {
+      "id": "m18",
+      "tags": ["multi_location"],
+      "note": "M1 预览里的真实句：两格都放了",
+      "text": "A07、B07两格都放了电池。",
+      "expect": {
+        "intent": "put",
+        "items": [
+          { "name": "电池", "quantity": null, "locationCode": "A-07" },
+          { "name": "电池", "quantity": null, "locationCode": "B-07" }
+        ]
+      }
+    },
+    {
+      "id": "m19",
+      "tags": ["multi_location"],
+      "note": "「各两节」是显式分配，不是摊分",
+      "text": "把七号电池分开放A07和B07，各两节。",
+      "expect": {
+        "intent": "put",
+        "items": [
+          { "name": "七号电池", "quantity": 2, "locationCode": "A-07" },
+          { "name": "七号电池", "quantity": 2, "locationCode": "B-07" }
+        ]
+      }
+    },
+    {
+      "id": "m20",
+      "tags": ["multi_location"],
+      "note": "同物两位、数量各不同",
+      "text": "膨胀栓A07放两包，B07放一包。",
+      "expect": {
+        "intent": "put",
+        "items": [
+          { "name": "膨胀栓", "quantity": 2, "locationCode": "A-07" },
+          { "name": "膨胀栓", "quantity": 1, "locationCode": "B-07" }
+        ]
+      }
+    },
+    {
+      "id": "m21",
+      "tags": ["multi_location"],
+      "note": "「都放一把」= 每位 1",
+      "text": "A07和B07都放一把螺丝刀。",
+      "expect": {
+        "intent": "put",
+        "items": [
+          { "name": "螺丝刀", "quantity": 1, "locationCode": "A-07" },
+          { "name": "螺丝刀", "quantity": 1, "locationCode": "B-07" }
+        ]
+      }
+    },
+    {
+      "id": "m22",
+      "tags": ["deictic", "no_location"],
+      "note": "「那个螺丝刀」没有编号 → 不许造",
+      "text": "那个螺丝刀也放进去。",
+      "expect": { "intent": "put", "items": [{ "name": "螺丝刀", "quantity": null, "locationCode": null }] }
+    },
+    {
+      "id": "m23",
+      "tags": ["deictic"],
+      "note": "语气词 + 指代 + 位置",
+      "text": "还有那个万能胶，也一起放A07。",
+      "expect": { "intent": "put", "items": [{ "name": "万能胶", "quantity": null, "locationCode": "A-07" }] }
+    },
+    {
+      "id": "m24",
+      "tags": ["deictic"],
+      "note": "M0.6 真实样本 21：嗯 + 那个 + 里有个",
+      "text": "嗯那个A07里有个螺丝刀。",
+      "expect": { "intent": "put", "items": [{ "name": "螺丝刀", "quantity": null, "locationCode": "A-07" }] }
+    },
+    {
+      "id": "m25",
+      "tags": ["deictic"],
+      "note": "「刚才说的」不改变意图",
+      "text": "刚才说的那个手电筒放到B05。",
+      "expect": { "intent": "put", "items": [{ "name": "手电筒", "quantity": null, "locationCode": "B-05" }] }
+    },
+    {
+      "id": "m26",
+      "tags": ["single"],
+      "note": "数量后置在逗号后",
+      "text": "充电线也放进A07，两根。",
+      "expect": { "intent": "put", "items": [{ "name": "充电线", "quantity": 2, "locationCode": "A-07" }] }
+    },
+    {
+      "id": "m27",
+      "tags": ["correct"],
+      "note": "否定纠正位置：目标是最近一条（103，五号电池 A-07 2）",
+      "text": "不是A07，是B07。",
+      "expect": {
+        "intent": "correct",
+        "targetSeq": 103,
+        "items": [{ "name": "五号电池", "quantity": 2, "locationCode": "B-07" }]
+      }
+    },
+    {
+      "id": "m28",
+      "tags": ["correct"],
+      "note": "只改数量，其余字段必须回填完整状态",
+      "text": "刚才那个数量改成三个。",
+      "expect": {
+        "intent": "correct",
+        "targetSeq": 103,
+        "items": [{ "name": "五号电池", "quantity": 3, "locationCode": "A-07" }]
+      }
+    },
+    {
+      "id": "m29",
+      "tags": ["correct"],
+      "note": "「不对，是两节」—— 只有数量被纠正",
+      "text": "不对，是两节。",
+      "expect": {
+        "intent": "correct",
+        "targetSeq": 103,
+        "items": [{ "name": "五号电池", "quantity": 2, "locationCode": "A-07" }]
+      }
+    },
+    {
+      "id": "m30",
+      "tags": ["correct"],
+      "note": "点名物品 → 目标不是最新那条，而是该物品最近一条（102）",
+      "text": "说错了，登山杖放在C05不是C03。",
+      "expect": {
+        "intent": "correct",
+        "targetSeq": 102,
+        "items": [{ "name": "登山杖", "quantity": 1, "locationCode": "C-05" }]
+      }
+    },
+    {
+      "id": "m31",
+      "tags": ["correct"],
+      "note": "改物品名，位置数量不变",
+      "text": "不是五号电池，是七号电池。",
+      "expect": {
+        "intent": "correct",
+        "targetSeq": 103,
+        "items": [{ "name": "七号电池", "quantity": 2, "locationCode": "A-07" }]
+      }
+    },
+    {
+      "id": "m32",
+      "tags": ["correct"],
+      "note": "「数量不对」的另一种说法",
+      "text": "数量不对，改成五个。",
+      "expect": {
+        "intent": "correct",
+        "targetSeq": 103,
+        "items": [{ "name": "五号电池", "quantity": 5, "locationCode": "A-07" }]
+      }
+    },
+    {
+      "id": "m33",
+      "tags": ["delete"],
+      "note": "删上一条 = 最近一条",
+      "text": "删掉上一条。",
+      "expect": { "intent": "delete", "targetSeq": 103, "items": [] }
+    },
+    {
+      "id": "m34",
+      "tags": ["delete"],
+      "note": "「最后一条不算」",
+      "text": "最后一条不算。",
+      "expect": { "intent": "delete", "targetSeq": 103, "items": [] }
+    },
+    {
+      "id": "m35",
+      "tags": ["delete"],
+      "note": "「撤销」",
+      "text": "撤销刚才那个。",
+      "expect": { "intent": "delete", "targetSeq": 103, "items": [] }
+    },
+    {
+      "id": "m36",
+      "tags": ["delete"],
+      "note": "用位置指代要删的那条",
+      "text": "把A07那条删了。",
+      "expect": { "intent": "delete", "targetSeq": 103, "items": [] }
+    },
+    {
+      "id": "m37",
+      "tags": ["delete"],
+      "note": "点名物品 → 102",
+      "text": "删掉登山杖那条。",
+      "expect": { "intent": "delete", "targetSeq": 102, "items": [] }
+    },
+    {
+      "id": "m38",
+      "tags": ["query"],
+      "note": "「放哪了」",
+      "text": "五号电池放哪了？",
+      "expect": { "intent": "query", "items": [{ "name": "五号电池", "quantity": null, "locationCode": null }] }
+    },
+    {
+      "id": "m39",
+      "tags": ["query"],
+      "note": "「在哪个抽屉」",
+      "text": "我的充电线在哪个抽屉？",
+      "expect": { "intent": "query", "items": [{ "name": "充电线", "quantity": null, "locationCode": null }] }
+    },
+    {
+      "id": "m40",
+      "tags": ["query"],
+      "note": "问数量 —— 数据库里的事实不许编",
+      "text": "手电筒还有几个？",
+      "expect": { "intent": "query", "items": [{ "name": "手电筒", "quantity": null, "locationCode": null }] }
+    },
+    {
+      "id": "m41",
+      "tags": ["query"],
+      "note": "极短 query",
+      "text": "雨伞在哪",
+      "expect": { "intent": "query", "items": [{ "name": "雨伞", "quantity": null, "locationCode": null }] }
+    },
+    {
+      "id": "m42",
+      "tags": ["query"],
+      "note": "「放哪儿了」",
+      "text": "膨胀栓放哪儿了",
+      "expect": { "intent": "query", "items": [{ "name": "膨胀栓", "quantity": null, "locationCode": null }] }
+    },
+    {
+      "id": "m43",
+      "tags": ["hard"],
+      "note": "编号陷阱：A4纸 是物品，B05 才是编号",
+      "text": "A4纸放B05两包。",
+      "expect": { "intent": "put", "items": [{ "name": "A4纸", "quantity": 2, "locationCode": "B-05" }] }
+    },
+    {
+      "id": "m44",
+      "tags": ["hard"],
+      "note": "D号是用户明确说出的位置；保留原样，不补成 D-00",
+      "text": "D号抽屉里放一把螺丝刀。",
+      "expect": { "intent": "put", "items": [{ "name": "螺丝刀", "quantity": 1, "locationCode": "D号" }] }
+    },
+    {
+      "id": "m45",
+      "tags": ["hard"],
+      "note": "数字形态：七号 与 7号 是同一个物品",
+      "text": "七号电池放A07两节。",
+      "expect": { "intent": "put", "items": [{ "name": "七号电池", "quantity": 2, "locationCode": "A-07" }] }
+    },
+    {
+      "id": "m46",
+      "tags": ["hard"],
+      "note": "「1.5米」是规格不是个数 → 不许变成 15",
+      "text": "A07放1.5米的插线板。",
+      "expect": { "intent": "put", "items": [{ "name": "插线板", "quantity": null, "locationCode": "A-07" }] }
+    },
+    {
+      "id": "m47",
+      "tags": ["hard"],
+      "note": "「两格」是位置数量，不是物品数量；也没有明确编号",
+      "text": "两格都放了电池。",
+      "expect": { "intent": "put", "items": [{ "name": "电池", "quantity": null, "locationCode": null }] }
+    },
+    {
+      "id": "m48",
+      "tags": ["hard"],
+      "note": "只看到 ASR 文本时不能反推 A07；自由位置按所听文本原样记录，需用户核对",
+      "text": "黑洞管理放了7号电池两节。",
+      "expect": { "intent": "put", "items": [{ "name": "7号电池", "quantity": 2, "locationCode": "黑洞管理" }] }
+    },
+    {
+      "id": "m49",
+      "tags": ["hard"],
+      "note": "一位编号 A7 → 归一成 A-07",
+      "text": "A7放两节七号电池。",
+      "expect": { "intent": "put", "items": [{ "name": "七号电池", "quantity": 2, "locationCode": "A-07" }] }
+    },
+    {
+      "id": "m50",
+      "tags": ["take"],
+      "note": "TAKE 带数量（对象在 A07）",
+      "text": "把A07里的七号电池拿出来两节。",
+      "expect": { "intent": "take", "items": [{ "name": "七号电池", "quantity": 2, "locationCode": "A-07" }] }
+    },
+    {
+      "id": "m51",
+      "tags": ["multi_item", "hard"],
+      "note": "真机 ASR 原文：连续清单被切成六句，12 项都应沿用开头 A01；没有逐项数量的保持 null",
+      "text": "我在 A01 放了两个哑铃片，一个笔记本电脑，三台手机，一个指甲钳。两支护手霜，5号电池，7号电池，平板电脑。瓶盖片。3个空调遥控器。两个松紧带。3包纸巾。",
+      "expect": { "intent": "put", "items": [
+        { "name": "哑铃片", "quantity": 2, "locationCode": "A-01" },
+        { "name": "笔记本电脑", "quantity": 1, "locationCode": "A-01" },
+        { "name": "手机", "quantity": 3, "locationCode": "A-01" },
+        { "name": "指甲钳", "quantity": 1, "locationCode": "A-01" },
+        { "name": "护手霜", "quantity": 2, "locationCode": "A-01" },
+        { "name": "五号电池", "quantity": null, "locationCode": "A-01" },
+        { "name": "七号电池", "quantity": null, "locationCode": "A-01" },
+        { "name": "平板电脑", "quantity": null, "locationCode": "A-01" },
+        { "name": "瓶盖片", "quantity": null, "locationCode": "A-01" },
+        { "name": "空调遥控器", "quantity": 3, "locationCode": "A-01" },
+        { "name": "松紧带", "quantity": 2, "locationCode": "A-01" },
+        { "name": "纸巾", "quantity": 3, "locationCode": "A-01" }
+      ] }
+    },
+    {
+      "id": "m52",
+      "tags": ["multi_item", "hard"],
+      "note": "句号只是 ASR 停顿，连续报物品仍沿用同一编号",
+      "text": "A01放一个手电筒。两把螺丝刀。三包纸巾。",
+      "expect": { "intent": "put", "items": [
+        { "name": "手电筒", "quantity": 1, "locationCode": "A-01" },
+        { "name": "螺丝刀", "quantity": 2, "locationCode": "A-01" },
+        { "name": "纸巾", "quantity": 3, "locationCode": "A-01" }
+      ] }
+    },
+    {
+      "id": "m53",
+      "tags": ["multi_item", "multi_location", "hard"],
+      "note": "明确说出 B02 才切换位置，后续无编号清单继承 B02",
+      "text": "A01放两节电池。B02放一把雨伞。三包纸巾。",
+      "expect": { "intent": "put", "items": [
+        { "name": "电池", "quantity": 2, "locationCode": "A-01" },
+        { "name": "雨伞", "quantity": 1, "locationCode": "B-02" },
+        { "name": "纸巾", "quantity": 3, "locationCode": "B-02" }
+      ] }
+    },
+    {
+      "id": "m54",
+      "tags": ["multi_item", "no_location", "hard"],
+      "note": "全段没说编号时不可凭最近操作或标点猜位置",
+      "text": "放了两节电池。三包纸巾。",
+      "expect": { "intent": "put", "items": [
+        { "name": "电池", "quantity": 2, "locationCode": null },
+        { "name": "纸巾", "quantity": 3, "locationCode": null }
+      ] }
+    }
+  ]
+}

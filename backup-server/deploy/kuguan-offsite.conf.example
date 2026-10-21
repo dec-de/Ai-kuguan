@@ -1,0 +1,4 @@
+# Root-owned /etc/kuguan-offsite.conf (0600); contains no secret material.
+KUGUAN_OFFSITE_HOST=192.0.2.10
+KUGUAN_OFFSITE_SSH_KEY=/root/.ssh/offsite-ed25519
+KUGUAN_OFFSITE_RECIPIENT=REPLACE_WITH_YOUR_GPG_RECIPIENT

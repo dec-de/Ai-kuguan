@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- debug/release 变体通过 resValue 各自覆盖 app_name；此处为 IDE 预览兜底 -->
+    <string name="app_name">收纳助手</string>
+</resources>

@@ -1,0 +1,12 @@
+[Unit]
+Description=Kuguan encrypted offsite archive
+After=network-online.target kuguan-backup.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/sbin/kuguan-offsite-source
+TimeoutStartSec=2h
+UMask=0077
+

@@ -1,0 +1,20 @@
+# Credentials, signing and generated output
+secrets.properties
+local.properties
+config/*.local.properties
+*.keystore
+*.jks
+*.p12
+.gradle/
+.kotlin/
+.idea/
+**/build/
+**/__pycache__/
+.pytest_cache/
+*.pyc
+*.apk
+*.aab
+*.wav
+*.log
+!release/
+!release/*.apk

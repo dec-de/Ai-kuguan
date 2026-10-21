@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Kuguan encrypted offsite archive
+
+[Timer]
+OnCalendar=*-*-* 18:30:00 UTC
+Persistent=true
+RandomizedDelaySec=10m
+Unit=kuguan-offsite.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,19 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 抽屉格 + 编号感，缩略到大尺寸也能辨识 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,38h44v14h-44z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,58h44v14h-44z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48,42h4v6h-4z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48,62h4v6h-4z" />
+</vector>
