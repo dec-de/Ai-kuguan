@@ -52,6 +52,16 @@ class DeepSeekWireTest {
         val body = DeepSeekWire.requestBody("deepseek-flash", "sys", "user")
         val json = Json.parseToJsonElement(body).jsonObject
         assertEquals("none", json["reasoning_effort"]!!.jsonPrimitive.content)
+        assertEquals("disabled", json["thinking"]!!.jsonObject["type"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `可选供应商限制且空值不发送`() {
+        val specified = Json.parseToJsonElement(DeepSeekWire.requestBody("m", "s", "u", provider = "wafer")).jsonObject
+        assertEquals("wafer", specified["provider"]!!.jsonObject["only"]!!.jsonArray[0].jsonPrimitive.content)
+        assertEquals("none", specified["reasoning"]!!.jsonObject["effort"]!!.jsonPrimitive.content)
+        val unspecified = Json.parseToJsonElement(DeepSeekWire.requestBody("m", "s", "u")).jsonObject
+        assertFalse(unspecified.containsKey("provider"))
     }
 
     @Test

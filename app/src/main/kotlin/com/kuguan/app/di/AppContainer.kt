@@ -92,7 +92,7 @@ class AppContainer(context: Context) {
         val config = voiceSettings.read().config
         cachedRoutes?.takeIf { it.first == config }?.let { return it.second }
         val primary = DeepSeekLlmClient(config.primaryUrl, config.primaryKey, config.primaryModel,
-            http = primaryHttp)
+            http = primaryHttp, provider = config.primaryProvider)
         val fallback = if (config.fallbackConfigured) DeepSeekLlmClient(
             config.fallbackUrl, config.fallbackKey, config.fallbackModel, http = fallbackHttp) else null
         return (primary to fallback).also { cachedRoutes = config to it }

@@ -108,6 +108,23 @@ class StorageRepositoryTest {
         assertNull("位置不存在时应返回 null 而不是抛异常", result)
     }
 
+    @Test
+    fun `详情取出验证最新库存并记录历史`() = runTest {
+        val db = FakeDb()
+        val repo = db.repository()
+        val id = repo.put("电池", "A-01", 3.0).itemId!!
+        repo.put("电池", "B-01", 2.0)
+        assertTrue(repo.takeFromDetail(id, "A-01", 1.5))
+        assertEquals(1.5, db.locationDao.findLive(id, "A-01")!!.quantity, 0.001)
+        assertEquals(2.0, db.locationDao.findLive(id, "B-01")!!.quantity, 0.001)
+        assertEquals(OperationType.TAKE, db.operationDao.findLatestActive()!!.type)
+        assertTrue(!repo.takeFromDetail(id, "A-01", 2.0))
+        assertTrue(!repo.takeFromDetail(id, "A-01", Double.NaN))
+        assertTrue(repo.takeFromDetail(id, "A-01", 1.5))
+        assertNull(db.locationDao.findLive(id, "A-01"))
+        assertTrue(!repo.takeFromDetail(id, "A-01", 1.0))
+    }
+
     // ---------- 撤销（append-only） ----------
 
     @Test

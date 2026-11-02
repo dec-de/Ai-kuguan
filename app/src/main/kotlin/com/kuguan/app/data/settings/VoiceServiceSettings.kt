@@ -23,6 +23,7 @@ data class VoiceServiceConfig(
     val fallbackUrl: String = "",
     val fallbackModel: String = "",
     val fallbackKey: String = "",
+    val primaryProvider: String = "",
 ) {
     val fallbackConfigured: Boolean
         get() = fallbackUrl.isNotBlank() && fallbackModel.isNotBlank() && fallbackKey.isNotBlank()
@@ -70,6 +71,7 @@ class VoiceServiceSettings(context: Context) {
                 asrUrl = json.getString("asrUrl"), asrModel = json.getString("asrModel"),
                 asrKey = json.getString("asrKey"), primaryUrl = json.getString("primaryUrl"),
                 primaryModel = json.getString("primaryModel"), primaryKey = json.getString("primaryKey"),
+                primaryProvider = json.optString("primaryProvider", ""),
                 fallbackUrl = json.getString("fallbackUrl"), fallbackModel = json.getString("fallbackModel"),
                 fallbackKey = json.getString("fallbackKey"),
             ))
@@ -85,6 +87,7 @@ class VoiceServiceSettings(context: Context) {
             .put("version", VERSION)
             .put("asrUrl", config.asrUrl).put("asrModel", config.asrModel).put("asrKey", config.asrKey)
             .put("primaryUrl", config.primaryUrl).put("primaryModel", config.primaryModel).put("primaryKey", config.primaryKey)
+            .put("primaryProvider", config.primaryProvider)
             .put("fallbackUrl", config.fallbackUrl).put("fallbackModel", config.fallbackModel)
             .put("fallbackKey", config.fallbackKey)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key()) }

@@ -16,9 +16,11 @@ import org.junit.Test
 class DeepSeekLlmClientTest {
     @Test
     fun `总超时配置保留且拒绝明文 HTTP 地址`() {
-        assertEquals(2200, DeepSeekLlmClient.DEFAULT_TIMEOUT_MS)
+        assertEquals(10000, DeepSeekLlmClient.DEFAULT_TIMEOUT_MS)
         val configured = DeepSeekLlmClient.defaultClient(DeepSeekLlmClient.DEFAULT_TIMEOUT_MS)
-        assertEquals(2200, configured.callTimeoutMillis)
+        assertEquals(10000, configured.callTimeoutMillis)
+        assertEquals(10000, configured.readTimeoutMillis)
+        assertEquals(10000, configured.writeTimeoutMillis)
         assertEquals(1000, configured.connectTimeoutMillis)
         assertFalse(configured.followRedirects)
         val client = DeepSeekLlmClient(

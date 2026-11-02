@@ -411,6 +411,28 @@ class StorageRepository(
         return op
     }
 
+    /** 详情页取出：在同一事务内核对物品和最新库存，并保留正常取出历史。 */
+    suspend fun takeFromDetail(itemId: String, locationCode: String, quantity: Double): Boolean {
+        if (!quantity.isFinite() || quantity <= 0.0 || quantity > MAX_QUANTITY) return false
+        var written = false
+        transactionRunner.runInTransaction {
+            val item = itemDao.findLiveById(itemId) ?: return@runInTransaction
+            val location = locationDao.findLive(itemId, locationCode) ?: return@runInTransaction
+            if (quantity > location.quantity) return@runInTransaction
+            written = take(item.name, locationCode, quantity, notifyStock = false) != null
+        }
+        if (written) {
+            try {
+                stockStateRefresh()
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                android.util.Log.e("StorageRepository", "取出后刷新库存提醒失败", error)
+            }
+        }
+        return written
+    }
+
     // ---------- 写：批量放入 ----------
 
     /**

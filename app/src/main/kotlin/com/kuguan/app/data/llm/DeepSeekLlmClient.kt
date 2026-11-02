@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * 1. **`reasoning_effort:"none"`**：[DeepSeekWire.requestBody] 里写死。
  *    官方默认开思考模式，实测 2.73s，击穿 2.0s 端到端预算。
- * 2. **单次 2200ms 硬超时**：`callTimeout` 覆盖「连接 + 写 + 读」全程。
+ * 2. **单次 10000ms 硬超时**：`callTimeout` 覆盖「连接 + 写 + 读」全程。
  *    超时 → [LlmResult.Failure] → 调用方尝试备用线路或显示失败原因。
  * 3. **同一时刻只允许一个在飞请求**：用户可能连按两次「按住说话」，
  *    第二个请求排队等第一个没有意义（前一句的解析结果已经过期），直接返回失败。
@@ -41,6 +41,7 @@ class DeepSeekLlmClient(
     private val model: String,
     private val timeoutMs: Long = DEFAULT_TIMEOUT_MS,
     private val http: OkHttpClient = defaultClient(timeoutMs),
+    private val provider: String = "",
 ) : LlmClient {
 
     private val inFlight = AtomicBoolean(false)
@@ -85,7 +86,7 @@ class DeepSeekLlmClient(
         fun elapsedMs(): Long = (System.nanoTime() - startedAt) / 1_000_000
 
         try {
-            val body = DeepSeekWire.requestBody(model, request.systemPrompt, request.userText)
+            val body = DeepSeekWire.requestBody(model, request.systemPrompt, request.userText, provider = provider)
             val httpRequest = Request.Builder()
                 .url(endpoint)
                 .post(body.toRequestBody(JSON_MEDIA_TYPE))
@@ -147,11 +148,10 @@ class DeepSeekLlmClient(
         private const val TAG = "LlmClient"
 
         /**
-         * K70 2026-10-18 复测中，12 次请求有 4 次恰好在 1500ms 截止处降级。
-         * 放宽到 2200ms，优先保全批量/纠错语义。
+         * 将单次请求总超时设为 10 秒，给较慢的模型响应留出时间。
          * 网络尾延迟可能继续超过上限，届时返回明确的失败原因。
          */
-        const val DEFAULT_TIMEOUT_MS = 2200L
+        const val DEFAULT_TIMEOUT_MS = 10000L
 
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 

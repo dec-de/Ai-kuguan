@@ -55,14 +55,6 @@ import com.kuguan.app.ui.theme.SemanticAction
 import com.kuguan.app.ui.theme.colorFor
 import kotlinx.coroutines.launch
 
-/**
- * 物品详情 —— **唯一可以编辑的地方**，可编辑物品属性与补货提醒阈值。
- *
- * 刻意**不允许改位置**（计划 7.2）：位置只能通过语音变更。
- * 这保证了「位置关系」的唯一写入通道是语音，不会出现
- * 「界面改了位置但操作历史里没有这条记录」的数据不一致。
- * 位置卡片下方有一句明说的提示 —— 不是「没做」，是「这里不能做」。
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ItemDetailScreen(
@@ -89,6 +81,11 @@ fun ItemDetailScreen(
     var messageIsError by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
+    var takeLocation by remember { mutableStateOf<String?>(null) }
+    var takeQuantity by remember { mutableStateOf("1") }
+    var takeError by remember { mutableStateOf<String?>(null) }
+    var takeMessage by remember { mutableStateOf<String?>(null) }
+    var taking by remember { mutableStateOf(false) }
 
     val locations by repository.observeLocationsOf(itemId).collectAsState(initial = emptyList())
     val allOperations by repository.observeOperationsOf(itemId).collectAsState(initial = emptyList())
@@ -186,6 +183,55 @@ fun ItemDetailScreen(
         }
     }
 
+    takeLocation?.let { code ->
+        val available = locations.firstOrNull { it.locationCode == code }?.quantity ?: 0.0
+        AlertDialog(
+            onDismissRequest = { if (!taking) takeLocation = null },
+            title = { Text("从 $code 取出") },
+            text = {
+                Column {
+                    Text("当前库存：${LookupText.quantity(available)} 个")
+                    OutlinedTextField(
+                        value = takeQuantity, onValueChange = { takeQuantity = it; takeError = null },
+                        label = { Text("取出数量") }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        isError = takeError != null,
+                        supportingText = { takeError?.let { Text(it) } },
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = !taking, onClick = {
+                    val amount = takeQuantity.trim().toDoubleOrNull()
+                    if (amount == null || !amount.isFinite() || amount <= 0.0 || amount > com.kuguan.app.data.repo.MAX_QUANTITY) {
+                        takeError = "请输入大于 0 且不超过 999 的数量"
+                    } else if (amount > available) {
+                        takeError = "取出数量不能超过当前位置库存"
+                    } else {
+                        taking = true
+                        scope.launch {
+                            try {
+                                if (repository.takeFromDetail(itemId, code, amount)) {
+                                    takeLocation = null
+                                    takeMessage = "已从 $code 取出 ${LookupText.quantity(amount)} 个"
+                                } else {
+                                    takeError = "库存已变化或物品不存在，请检查后重试"
+                                }
+                            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                                throw cancelled
+                            } catch (e: Exception) {
+                                takeError = "取出失败，请重试"
+                            } finally {
+                                taking = false
+                            }
+                        }
+                    }
+                }) { Text("确认取出") }
+            },
+            dismissButton = { TextButton(enabled = !taking, onClick = { takeLocation = null }) { Text("取消") } },
+        )
+    }
+
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
@@ -268,13 +314,22 @@ fun ItemDetailScreen(
                                     modifier = Modifier.size(22.dp))
                                 Text(record.locationCode, style = MaterialTheme.typography.titleMedium)
                             }
-                            Text("× ${LookupText.quantity(record.quantity)}",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary)
+                            Column {
+                                Text("× ${LookupText.quantity(record.quantity)}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary)
+                                TextButton(onClick = {
+                                    takeLocation = record.locationCode
+                                    takeQuantity = "1"
+                                    takeError = null
+                                    takeMessage = null
+                                }) { Text("取出") }
+                            }
                         }
                     }
                 }
-                Text("位置变化请在首页用语音记录，方便保留操作历史。",
+                takeMessage?.let { Text(it, modifier = Modifier.padding(top = 8.dp)) }
+                Text("可在这里记录取出；放入请在首页用语音记录。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 16.dp))

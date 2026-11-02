@@ -64,6 +64,7 @@ fun VoiceAiSettingsScreen(
     var primaryUrl by rememberSaveable { mutableStateOf(initial.config.primaryUrl) }
     var primaryModel by rememberSaveable { mutableStateOf(initial.config.primaryModel) }
     var primaryKey by remember { mutableStateOf(initial.config.primaryKey) }
+    var primaryProvider by rememberSaveable { mutableStateOf(initial.config.primaryProvider) }
     var fallbackUrl by rememberSaveable { mutableStateOf(initial.config.fallbackUrl) }
     var fallbackModel by rememberSaveable { mutableStateOf(initial.config.fallbackModel) }
     var fallbackKey by remember { mutableStateOf(initial.config.fallbackKey) }
@@ -78,6 +79,7 @@ fun VoiceAiSettingsScreen(
     val draft = VoiceServiceConfig(
         asrUrl = asrUrl.trim(), asrModel = asrModel.trim(), asrKey = asrKey.trim(),
         primaryUrl = primaryUrl.trim(), primaryModel = primaryModel.trim(), primaryKey = primaryKey.trim(),
+        primaryProvider = primaryProvider.trim(),
         fallbackUrl = fallbackUrl.trim(), fallbackModel = fallbackModel.trim(), fallbackKey = fallbackKey.trim(),
     )
     SideEffect { onDirtyChange(draft != saved) }
@@ -132,12 +134,14 @@ fun VoiceAiSettingsScreen(
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("DeepSeek 主线路", style = MaterialTheme.typography.titleLarge)
-                SavedStatus(saved.primaryKey, primaryTest, listOf(primaryUrl.trim(), primaryModel.trim(), primaryKey.trim()))
+                SavedStatus(saved.primaryKey, primaryTest, listOf(primaryUrl.trim(), primaryModel.trim(), primaryKey.trim(), primaryProvider.trim()))
                 OutlinedTextField(primaryUrl, { primaryUrl = it }, label = { Text("HTTPS API 地址（必填）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(primaryModel, { primaryModel = it }, label = { Text("模型（必填）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(primaryProvider, { primaryProvider = it }, label = { Text("OpenRouter 供应商（可选，如 wafer）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Text("填写后仅使用该供应商；中转站需透传请求体路由参数。留空则自动选择。")
                 SecretField("API Key（必填）", primaryKey, { primaryKey = it })
                 OutlinedButton(enabled = busy.isEmpty(), onClick = {
-                    test("primary", listOf(primaryUrl.trim(), primaryModel.trim(), primaryKey.trim()), tester::testPrimary)
+                    test("primary", listOf(primaryUrl.trim(), primaryModel.trim(), primaryKey.trim(), primaryProvider.trim()), tester::testPrimary)
                 }) { Text(if (busy == "primary") "正在测试…" else "测试主线路连接") }
             }
         }

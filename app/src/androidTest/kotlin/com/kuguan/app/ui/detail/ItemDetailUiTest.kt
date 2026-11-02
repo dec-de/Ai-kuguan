@@ -7,6 +7,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performTextInput
 import androidx.room.Room
 import androidx.room.withTransaction
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -40,6 +42,36 @@ class ItemDetailUiTest {
             compose.onNodeWithText("保存").assertExists()
             compose.onNodeWithText("取消编辑").performClick()
             compose.onNodeWithText("编辑资料").assertExists()
+        } finally {
+            compose.runOnIdle { show = false }
+            compose.waitForIdle()
+        }
+    }
+
+    @Test fun takeFromSelectedLocationUpdatesInventoryAndHistory() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val db = Room.inMemoryDatabaseBuilder(context, KuguanDatabase::class.java).build()
+        var show by mutableStateOf(true)
+        try {
+            val repo = StorageRepository(db.itemDao(), db.locationDao(), db.operationDao(),
+                TransactionRunner { block -> db.withTransaction { block() } })
+            val id = runBlocking { repo.put("测试电池", "A-01", 3.0).itemId!! }
+            compose.setContent { if (show) KuguanTheme(darkTheme = false) {
+                ItemDetailScreen(repo, id, onBack = {})
+            } }
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("取出").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("取出").performClick()
+            compose.onNodeWithText("取出数量").performTextClearance()
+            compose.onNodeWithText("取出数量").performTextInput("4")
+            compose.onNodeWithText("确认取出").performClick()
+            compose.onNodeWithText("取出数量不能超过当前位置库存").assertExists()
+            compose.onNodeWithText("取出数量").performTextClearance()
+            compose.onNodeWithText("取出数量").performTextInput("2")
+            compose.onNodeWithText("确认取出").performClick()
+            compose.waitUntil(5_000) { compose.onAllNodesWithText("已从 A-01 取出 2 个").fetchSemanticsNodes().isNotEmpty() }
+            org.junit.Assert.assertEquals(1.0, runBlocking { db.locationDao().findLive(id, "A-01")!!.quantity }, 0.0)
+            org.junit.Assert.assertEquals(com.kuguan.app.data.db.OperationType.TAKE,
+                runBlocking { db.operationDao().findLatestActive()!!.type })
         } finally {
             compose.runOnIdle { show = false }
             compose.waitForIdle()

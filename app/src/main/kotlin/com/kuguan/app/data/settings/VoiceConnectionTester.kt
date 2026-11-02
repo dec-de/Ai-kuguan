@@ -21,14 +21,14 @@ class VoiceConnectionTester {
     }
 
     suspend fun testPrimary(config: VoiceServiceConfig): ConnectionTestResult =
-        testLlm(config.primaryUrl, config.primaryKey, config.primaryModel)
+        testLlm(config.primaryUrl, config.primaryKey, config.primaryModel, config.primaryProvider)
 
     suspend fun testFallback(config: VoiceServiceConfig): ConnectionTestResult =
         if (!config.fallbackConfigured) ConnectionTestResult(false, "备用 LLM 须填全地址、模型和 Key")
         else testLlm(config.fallbackUrl, config.fallbackKey, config.fallbackModel)
 
-    private suspend fun testLlm(url: String, key: String, model: String): ConnectionTestResult {
-        val client = DeepSeekLlmClient(url, key, model, timeoutMs = 6000L)
+    private suspend fun testLlm(url: String, key: String, model: String, provider: String = ""): ConnectionTestResult {
+        val client = DeepSeekLlmClient(url, key, model, provider = provider)
         client.configError?.let { return ConnectionTestResult(false, it) }
         return when (val result = client.extract(LlmRequest(
             systemPrompt = "你正在执行连接测试。仅返回一个 JSON 对象。",

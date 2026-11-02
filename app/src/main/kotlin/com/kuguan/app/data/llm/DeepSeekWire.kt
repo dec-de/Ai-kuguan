@@ -3,6 +3,7 @@ package com.kuguan.app.data.llm
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
@@ -40,6 +41,7 @@ object DeepSeekWire {
         systemPrompt: String,
         userText: String,
         maxTokens: Int = MAX_TOKENS,
+        provider: String = "",
     ): String = buildJsonObject {
         put("model", model)
         put("messages", buildJsonArray {
@@ -54,8 +56,13 @@ object DeepSeekWire {
         })
         put("temperature", 0)
         put("max_tokens", maxTokens)
-        // 绝不能删：默认思考模式实测 2.73s / 345 reasoning tokens
+        // 同时使用 DeepSeek 的显式开关和兼容参数；中转服务须支持或透传它们。
         put("reasoning_effort", "none")
+        putJsonObject("thinking") { put("type", "disabled") }
+        if (provider.isNotBlank()) putJsonObject("provider") {
+            put("only", buildJsonArray { add(JsonPrimitive(provider.trim())) })
+        }
+        if (provider.isNotBlank()) putJsonObject("reasoning") { put("effort", "none") }
         putJsonObject("response_format") { put("type", "json_object") }
     }.toString()
 
